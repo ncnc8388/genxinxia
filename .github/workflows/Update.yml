@@ -1,0 +1,45 @@
+name: Update
+
+on:
+  
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: GetTime
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d %H:%M:%S CST')" >> "$GITHUB_OUTPUT"
+
+      - name: Update
+        run: |
+          set -e
+          encoded_url=$(printf '%s' "https://fy.188766.xyz/?ip=192.168.1.2&bconly=true" | jq -sRr @uri)
+          wget -O fg.m3u "https://1303157606-jbnue8hg1f.ap-guangzhou.tencentscf.com/?url=${encoded_url}"
+          [ -f IPTV.m3u ] || touch IPTV.m3u
+          cat fg.m3u >> IPTV.m3u
+          rm -f EPG.xml && wget https://epg.112114.xyz/pp.xml -O EPG.xml
+          echo "Auto Update IPTV in ${{ steps.date.outputs.date }}" > README.md
+
+      # 如果你真的需要重写 git 历史，保留如下，否则可只用 git add/commit/push
+      - name: Clean
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout --orphan latest_branch
+          git add -A
+          git commit -am "${{ steps.date.outputs.date }}"
+          git branch -D main
+          git branch -m main
+
+      - name: Push
+        run: git push -f origin main
